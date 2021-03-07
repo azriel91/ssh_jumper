@@ -1,0 +1,10 @@
+[package]
+name = "ssh_jumper_model"
+version = "0.1.0"
+authors = ["Azriel Hoh <azriel91@gmail.com>"]
+edition = "2018"
+
+[dependencies]
+async-ssh2-lite = "0.2.1"
+async-std-resolver = "0.20.0"
+tokio = { version = "1.2.0", features = ["rt"] }

@@ -1,18 +1,18 @@
-use std::{borrow::Cow, fmt, io, net::SocketAddr};
+use std::{fmt, io, net::SocketAddr};
 
 use crate::HostAddress;
 
 #[derive(Debug)]
-pub enum Error<'tunnel> {
+pub enum Error {
     JumpHostConnectFail {
-        jump_host_addr: HostAddress<'tunnel>,
+        jump_host_addr: HostAddress<'static>,
         io_error: io::Error,
     },
     AsyncSessionInitialize(io::Error),
     DnsResolverCreate(async_std_resolver::ResolveError),
     DnsResolverLookup(async_std_resolver::ResolveError),
     JumpHostIpResolutionFail {
-        jump_host_addr: Cow<'tunnel, str>,
+        jump_host_addr: String,
     },
     LocalSocketAddr {
         local_socket: SocketAddr,
@@ -32,7 +32,7 @@ pub enum Error<'tunnel> {
     SshStreamerSpawnFail(tokio::task::JoinError),
 }
 
-impl<'tunnel> fmt::Display for Error<'tunnel> {
+impl fmt::Display for Error {
     fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
         match self {
             Self::JumpHostConnectFail { jump_host_addr, .. } => {
@@ -74,7 +74,7 @@ impl<'tunnel> fmt::Display for Error<'tunnel> {
     }
 }
 
-impl<'tunnel> std::error::Error for Error<'tunnel> {
+impl std::error::Error for Error {
     fn source(&self) -> Option<&(dyn std::error::Error + 'static)> {
         match self {
             Self::JumpHostConnectFail { io_error, .. } => Some(io_error),

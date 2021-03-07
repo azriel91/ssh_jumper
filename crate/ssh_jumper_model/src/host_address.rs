@@ -17,3 +17,15 @@ impl<'host> fmt::Display for HostAddress<'host> {
         }
     }
 }
+
+impl<'host> HostAddress<'host> {
+    /// Returns an owned version of self.
+    pub fn into_static(&self) -> HostAddress<'static> {
+        match self {
+            Self::IpAddr(ip_addr) => HostAddress::IpAddr(*ip_addr),
+            Self::HostName(host_name) => {
+                HostAddress::HostName(Cow::Owned(host_name.clone().into_owned()))
+            }
+        }
+    }
+}

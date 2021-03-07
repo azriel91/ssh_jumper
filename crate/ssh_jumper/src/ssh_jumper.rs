@@ -1,7 +1,4 @@
-use std::{
-    borrow::Cow,
-    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
-};
+use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
 
 use async_io::Async;
 use async_ssh2_lite::{AsyncChannel, AsyncSession, SessionConfiguration};
@@ -24,9 +21,7 @@ pub struct SshJumper;
 
 impl SshJumper {
     /// Opens an SSH tunnel.
-    pub async fn open_tunnel<'tunnel>(
-        ssh_tunnel_params: &'tunnel SshTunnelParams<'tunnel>,
-    ) -> Result<SocketAddr, Error<'tunnel>> {
+    pub async fn open_tunnel(ssh_tunnel_params: &SshTunnelParams<'_>) -> Result<SocketAddr, Error> {
         let SshTunnelParams {
             jump_host,
             jump_host_auth_params,
@@ -40,10 +35,10 @@ impl SshJumper {
         Ok(local_socket_addr)
     }
 
-    pub async fn open_ssh_session<'host>(
-        jump_host_addr: &'host HostAddress<'host>,
-        jump_host_auth_params: &JumpHostAuthParams<'host>,
-    ) -> Result<AsyncSession<TcpStream>, Error<'host>> {
+    pub async fn open_ssh_session(
+        jump_host_addr: &HostAddress<'_>,
+        jump_host_auth_params: &JumpHostAuthParams<'_>,
+    ) -> Result<AsyncSession<TcpStream>, Error> {
         // See https://github.com/bk-rs/async-ssh2-lite/blob/1b88c9cb64553ab395596a4368fc30e8e2e341c4/demos/smol/src/remote_port_forwarding.rs
         // but we use `channel_direct_tcpip` for local forwarding
 
@@ -54,12 +49,12 @@ impl SshJumper {
 
         let jump_host_ip = match jump_host_addr {
             HostAddress::IpAddr(ip_addr) => *ip_addr,
-            HostAddress::HostName(jump_host_addr) => Self::resolve_ip(jump_host_addr).await?,
+            HostAddress::HostName(jump_host_addr) => Self::resolve_ip(&jump_host_addr).await?,
         };
         let stream = Async::<TcpStream>::connect(SocketAddr::from((jump_host_ip, 22)))
             .await
             .map_err(|io_error| Error::JumpHostConnectFail {
-                jump_host_addr: jump_host_addr.clone(),
+                jump_host_addr: jump_host_addr.into_static(),
                 io_error,
             })?;
 
@@ -89,11 +84,11 @@ impl SshJumper {
         Ok(session)
     }
 
-    pub async fn open_direct_channel<'tunnel>(
+    pub async fn open_direct_channel(
         ssh_session: &AsyncSession<TcpStream>,
         local_socket: SocketAddr,
-        target_socket: &'tunnel HostSocketParams<'tunnel>,
-    ) -> Result<SocketAddr, Error<'tunnel>> {
+        target_socket: &HostSocketParams<'_>,
+    ) -> Result<SocketAddr, Error> {
         let target_host_address = target_socket.address.to_string();
         let target_host_address = target_host_address.as_str();
         let target_port = target_socket.port;
@@ -111,7 +106,7 @@ impl SshJumper {
     async fn spawn_channel_streamers<'tunnel>(
         local_socket: SocketAddr,
         mut jump_host_channel: AsyncChannel<TcpStream>,
-    ) -> Result<SocketAddr, Error<'tunnel>> {
+    ) -> Result<SocketAddr, Error> {
         let local_socket_addr = TcpListener::bind(local_socket)
             .map_err(|io_error| Error::LocalSocketBind {
                 local_socket,
@@ -176,9 +171,7 @@ impl SshJumper {
         Ok(local_socket_addr)
     }
 
-    async fn resolve_ip<'tunnel>(
-        jump_host_addr: &'tunnel Cow<'tunnel, str>,
-    ) -> Result<IpAddr, Error<'tunnel>> {
+    async fn resolve_ip<'tunnel>(jump_host_addr: &str) -> Result<IpAddr, Error> {
         let resolver = resolver_from_system_conf()
             .await
             .map_err(Error::DnsResolverCreate)?;
@@ -194,7 +187,7 @@ impl SshJumper {
             Ok(host_ip)
         } else {
             Err(Error::JumpHostIpResolutionFail {
-                jump_host_addr: jump_host_addr.clone(),
+                jump_host_addr: jump_host_addr.to_string(),
             })
         }
     }

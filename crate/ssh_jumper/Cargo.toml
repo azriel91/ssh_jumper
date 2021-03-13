@@ -1,11 +1,14 @@
 [package]
 name = "ssh_jumper"
 version = "0.1.0"
-description = "Async SSH tunnel through a jump host."
 authors = ["Azriel Hoh <azriel91@gmail.com>"]
 edition = "2018"
-
-# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+description = "Async SSH tunnel through a jump host."
+repository = "https://github.com/azriel91/ssh_jumper"
+documentation = "https://docs.rs/ssh_jumper/"
+readme = "../../README.md"
+keywords = ["ssh", "tunnel", "async"]
+license = "MIT OR Apache-2.0"
 
 [dependencies]
 async-io = "1.3.1"

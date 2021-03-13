@@ -50,7 +50,7 @@ impl SshJumper {
         jump_host_addr: &HostAddress<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
     ) -> Result<AsyncSession<TcpStream>, Error> {
-        // See https://github.com/bk-rs/async-ssh2-lite/blob/1b88c9cb64553ab395596a4368fc30e8e2e341c4/demos/smol/src/remote_port_forwarding.rs
+        // See https://github.com/bk-rs/async-ssh2-lite/blob/1b88c9c/demos/smol/src/remote_port_forwarding.rs
         // but we use `channel_direct_tcpip` for local forwarding
 
         let jump_host_user_name = &jump_host_auth_params.user_name;

@@ -4,6 +4,7 @@ use async_io::Async;
 use async_ssh2_lite::{AsyncChannel, AsyncSession, SessionConfiguration};
 use async_std_resolver::resolver_from_system_conf;
 use futures::{AsyncReadExt, AsyncWriteExt, FutureExt};
+use plain_path::PlainPathExt;
 use ssh_jumper_model::{Error, HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams};
 
 /// Forwards a local port to the target host through the jump host over SSH.
@@ -54,7 +55,10 @@ impl SshJumper {
 
         let jump_host_user_name = &jump_host_auth_params.user_name;
         let jump_host_public_key = None;
-        let jump_host_private_key = &jump_host_auth_params.private_key;
+        let jump_host_private_key = &jump_host_auth_params
+            .private_key
+            .plain()
+            .map_err(Error::PrivateKeyPlainPath)?;
         let jump_host_private_key_passphrase = jump_host_auth_params.passphrase.as_deref();
 
         let jump_host_ip = match jump_host_addr {

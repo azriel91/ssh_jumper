@@ -22,6 +22,7 @@ pub enum Error {
         local_socket: SocketAddr,
         io_error: io::Error,
     },
+    PrivateKeyPlainPath(plain_path::HomeDirNotFound),
     SshHandshakeFail(io::Error),
     SshUserAuthFail(io::Error),
     SshUserAuthError(async_ssh2_lite::ssh2::Error),
@@ -60,6 +61,7 @@ impl fmt::Display for Error {
             Self::LocalSocketBind { local_socket, .. } => {
                 write!(f, "Failed to bind to local socket: {}.", local_socket)
             }
+            Self::PrivateKeyPlainPath(..) => write!(f, "Failed to get private key plain path."),
             Self::SshHandshakeFail(..) => write!(f, "SSH handshake with jump host failed."),
             Self::SshUserAuthFail(..) => write!(f, "SSH user auth with jump host failed."),
             Self::SshUserAuthError(..) => write!(f, "SSH user auth with jump host failed.",),
@@ -84,6 +86,7 @@ impl std::error::Error for Error {
             Self::JumpHostIpResolutionFail { .. } => None,
             Self::LocalSocketAddr { io_error, .. } => Some(io_error),
             Self::LocalSocketBind { io_error, .. } => Some(io_error),
+            Self::PrivateKeyPlainPath(home_dir_not_found) => Some(home_dir_not_found),
             Self::SshHandshakeFail(io_error) => Some(io_error),
             Self::SshUserAuthFail(io_error) => Some(io_error),
             Self::SshUserAuthError(ssh2_error) => Some(ssh2_error),

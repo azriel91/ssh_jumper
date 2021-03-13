@@ -21,6 +21,10 @@ pub struct SshJumper;
 
 impl SshJumper {
     /// Opens an SSH tunnel.
+    ///
+    /// # Parameters
+    ///
+    /// * `ssh_tunnel_params`: Parameters to tunnel to the target host.
     pub async fn open_tunnel(ssh_tunnel_params: &SshTunnelParams<'_>) -> Result<SocketAddr, Error> {
         let SshTunnelParams {
             jump_host,
@@ -35,6 +39,12 @@ impl SshJumper {
         Ok(local_socket_addr)
     }
 
+    /// Opens an SSH session to a host.
+    ///
+    /// # Parameters
+    ///
+    /// * `jump_host_addr`: Address of the jump host.
+    /// * `jump_host_auth_params`: SSH authentication parameters.
     pub async fn open_ssh_session(
         jump_host_addr: &HostAddress<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
@@ -84,6 +94,17 @@ impl SshJumper {
         Ok(session)
     }
 
+    /// Returns the local address to a new tunnel to the given target host.
+    ///
+    /// The returned socket address may be different to the passed in local
+    /// socket address. For example, the passed in address may specify port 0,
+    /// which means the operating system choose an available port to use.
+    ///
+    /// # Parameters
+    ///
+    /// * `ssh_session`: Existing SSH session to create the tunnel through.
+    /// * `local_socket`: The local socket specification.
+    /// * `target_socket`: The address of the target host to connect to.
     pub async fn open_direct_channel(
         ssh_session: &AsyncSession<TcpStream>,
         local_socket: SocketAddr,

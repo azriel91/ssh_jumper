@@ -34,6 +34,7 @@
 
 pub use ssh_jumper_model as model;
 
-pub use crate::ssh_jumper::SshJumper;
+pub use crate::{ssh_jumper::SshJumper, ssh_session::SshSession};
 
 mod ssh_jumper;
+mod ssh_session;

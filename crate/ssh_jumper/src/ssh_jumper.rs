@@ -7,6 +7,8 @@ use futures::{AsyncReadExt, AsyncWriteExt, FutureExt};
 use plain_path::PlainPathExt;
 use ssh_jumper_model::{Error, HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams};
 
+use crate::SshSession;
+
 /// Forwards a local port to the target host through the jump host over SSH.
 ///
 /// You are most likely interested in the following 3 methods:
@@ -49,7 +51,7 @@ impl SshJumper {
     pub async fn open_ssh_session(
         jump_host_addr: &HostAddress<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
-    ) -> Result<AsyncSession<TcpStream>, Error> {
+    ) -> Result<SshSession, Error> {
         // See https://github.com/bk-rs/async-ssh2-lite/blob/1b88c9c/demos/smol/src/remote_port_forwarding.rs
         // but we use `channel_direct_tcpip` for local forwarding
 
@@ -95,7 +97,7 @@ impl SshJumper {
                 .unwrap_or(Error::SshUserAuthUnknownError));
         }
 
-        Ok(session)
+        Ok(SshSession(session))
     }
 
     /// Returns the local address to a new tunnel to the given target host.
@@ -110,7 +112,7 @@ impl SshJumper {
     /// * `local_socket`: The local socket specification.
     /// * `target_socket`: The address of the target host to connect to.
     pub async fn open_direct_channel(
-        ssh_session: &AsyncSession<TcpStream>,
+        ssh_session: &SshSession,
         local_socket: SocketAddr,
         target_socket: &HostSocketParams<'_>,
     ) -> Result<SocketAddr, Error> {
@@ -163,7 +165,7 @@ impl SshJumper {
                                     err
                                 })?
                             },
-                            Err(err) =>  {
+                            Err(err) => {
                                 return Err(err);
                             }
                         },

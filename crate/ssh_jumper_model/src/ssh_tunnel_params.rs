@@ -69,10 +69,10 @@ impl<'tunnel> SshTunnelParams<'tunnel> {
         self
     }
 
-    /// Sets the jump port to use.
+    /// Sets the jump host port to use for SSH.
     ///
     /// Useful if you do not want to use the default port for ssh.
-    pub fn with_jump_port(mut self, port: u16) -> Self {
+    pub fn with_jump_host_port(mut self, port: u16) -> Self {
         self.jump_host.port = port;
         self
     }

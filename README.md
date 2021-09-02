@@ -21,7 +21,7 @@ let local_socket_addr = {
         address: HostAddress::HostName(Cow::Borrowed("target_host")),
         port: 8080,
     };
-    let ssh_params = 
+    let ssh_params =
         SshTunnelParams::new(jump_host, jump_host_auth_params, target_socket)
             // Optional: OS will allocate a port if this is left out
             .with_local_port(1234);

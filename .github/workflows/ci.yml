@@ -74,7 +74,7 @@ jobs:
           override: true
 
       - name: Install libssh-dev
-        run: sudo apt install libssh-dev
+        run: sudo apt install libssh-dev llvm-dev
 
       - name: tarpaulin Cache
         id: tarpaulin_cache

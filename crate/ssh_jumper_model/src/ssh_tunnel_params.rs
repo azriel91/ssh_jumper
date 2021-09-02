@@ -9,8 +9,8 @@ const LOCAL_OS_CHOSEN_PORT: u16 = 0;
 /// Parameters to create the SSH tunnel.
 #[derive(Clone, Debug)]
 pub struct SshTunnelParams<'tunnel> {
-    /// Jump host address.
-    pub jump_host: HostAddress<'tunnel>,
+    /// Jump host address and port.
+    pub jump_host: HostSocketParams<'tunnel>,
     /// SSH auth params for the jump host.
     pub jump_host_auth_params: JumpHostAuthParams<'tunnel>,
     /// Local socket to forward to the target host.
@@ -39,9 +39,13 @@ impl<'tunnel> SshTunnelParams<'tunnel> {
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             LOCAL_OS_CHOSEN_PORT,
         );
+        let jump_host_params: HostSocketParams = HostSocketParams {
+            address: jump_host,
+            port: 22,
+        };
 
         SshTunnelParams {
-            jump_host,
+            jump_host: jump_host_params,
             jump_host_auth_params,
             local_socket,
             target_socket,
@@ -62,6 +66,14 @@ impl<'tunnel> SshTunnelParams<'tunnel> {
     /// Useful if you want use a known port for forwarding.
     pub fn with_local_port(mut self, port: u16) -> Self {
         self.local_socket.set_port(port);
+        self
+    }
+
+    /// Sets the jump host port to use for SSH.
+    ///
+    /// Useful if you do not want to use the default port for ssh.
+    pub fn with_jump_host_port(mut self, port: u16) -> Self {
+        self.jump_host.port = port;
         self
     }
 }

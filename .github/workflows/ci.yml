@@ -50,6 +50,9 @@ jobs:
           override: true
           components: clippy
 
+      - name: Install libssh-dev
+        run: sudo apt install libssh-dev
+
       - name: Install Clippy
         run: rustup component add clippy
 
@@ -69,6 +72,9 @@ jobs:
           profile: minimal
           toolchain: nightly
           override: true
+
+      - name: Install libssh-dev
+        run: sudo apt install libssh-dev
 
       - name: tarpaulin Cache
         id: tarpaulin_cache
@@ -105,13 +111,16 @@ jobs:
           toolchain: stable
           override: true
 
+      - name: Install libssh-dev
+        run: sudo apt install libssh-dev
+
       - uses: actions-rs/cargo@v1
         with:
           command: test
           args: --release
 
-  build_and_test_windows:
-    name: Build and Test (Windows)
+  build_windows:
+    name: Build (Windows)
     runs-on: windows-latest
     timeout-minutes: 10
     steps:
@@ -127,5 +136,5 @@ jobs:
 
       - uses: actions-rs/cargo@v1
         with:
-          command: test
+          command: build
           args: --release

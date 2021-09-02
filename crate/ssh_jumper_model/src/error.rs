@@ -1,11 +1,11 @@
 use std::{fmt, io, net::SocketAddr};
 
-use crate::HostAddress;
+use crate::HostSocketParams;
 
 #[derive(Debug)]
 pub enum Error {
     JumpHostConnectFail {
-        jump_host_addr: HostAddress<'static>,
+        jump_host_addr: HostSocketParams<'static>,
         io_error: io::Error,
     },
     AsyncSessionInitialize(io::Error),

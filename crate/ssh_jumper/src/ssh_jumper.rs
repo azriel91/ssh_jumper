@@ -1,11 +1,17 @@
-use std::net::{IpAddr, SocketAddr, TcpListener, TcpStream};
+use std::{
+    io,
+    net::{IpAddr, SocketAddr, TcpListener, TcpStream},
+};
 
 use async_io::Async;
 use async_ssh2_lite::{AsyncChannel, AsyncSession, SessionConfiguration};
 use async_std_resolver::resolver_from_system_conf;
 use futures::{AsyncReadExt, AsyncWriteExt, FutureExt};
 use plain_path::PlainPathExt;
-use ssh_jumper_model::{Error, HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams};
+use ssh_jumper_model::{
+    AuthMethod, Error, HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams,
+};
+use tokio::sync::{oneshot, oneshot::Receiver};
 
 use crate::SshSession;
 
@@ -28,7 +34,9 @@ impl SshJumper {
     /// # Parameters
     ///
     /// * `ssh_tunnel_params`: Parameters to tunnel to the target host.
-    pub async fn open_tunnel(ssh_tunnel_params: &SshTunnelParams<'_>) -> Result<SocketAddr, Error> {
+    pub async fn open_tunnel(
+        ssh_tunnel_params: &SshTunnelParams<'_>,
+    ) -> Result<(SocketAddr, Receiver<io::Error>), Error> {
         let SshTunnelParams {
             jump_host,
             jump_host_auth_params,
@@ -37,10 +45,8 @@ impl SshJumper {
         } = ssh_tunnel_params;
         let ssh_session =
             Self::open_ssh_session_with_port(jump_host, jump_host_auth_params).await?;
-        let local_socket_addr =
-            Self::open_direct_channel(&ssh_session, *local_socket, target_socket).await?;
 
-        Ok(local_socket_addr)
+        Self::open_direct_channel(&ssh_session, *local_socket, target_socket).await
     }
 
     /// Opens an SSH session to a host.
@@ -76,14 +82,6 @@ impl SshJumper {
         // See https://github.com/bk-rs/async-ssh2-lite/blob/1b88c9c/demos/smol/src/remote_port_forwarding.rs
         // but we use `channel_direct_tcpip` for local forwarding
 
-        let jump_host_user_name = &jump_host_auth_params.user_name;
-        let jump_host_public_key = None;
-        let jump_host_private_key = &jump_host_auth_params
-            .private_key
-            .plain()
-            .map_err(Error::PrivateKeyPlainPath)?;
-        let jump_host_private_key_passphrase = jump_host_auth_params.passphrase.as_deref();
-
         let jump_host_ip = match jump_host_addr.clone().address {
             HostAddress::IpAddr(ip_addr) => ip_addr,
             HostAddress::HostName(jump_host_addr) => Self::resolve_ip(&jump_host_addr).await?,
@@ -92,7 +90,7 @@ impl SshJumper {
             Async::<TcpStream>::connect(SocketAddr::from((jump_host_ip, jump_host_addr.port)))
                 .await
                 .map_err(|io_error| Error::JumpHostConnectFail {
-                    jump_host_addr: jump_host_addr.address.into_static(),
+                    jump_host_addr: jump_host_addr.into_static(),
                     io_error,
                 })?;
 
@@ -102,15 +100,7 @@ impl SshJumper {
             .map_err(Error::AsyncSessionInitialize)?;
 
         session.handshake().await.map_err(Error::SshHandshakeFail)?;
-        session
-            .userauth_pubkey_file(
-                jump_host_user_name,
-                jump_host_public_key,
-                jump_host_private_key,
-                jump_host_private_key_passphrase,
-            )
-            .await
-            .map_err(Error::SshUserAuthFail)?;
+        Self::ssh_session_authenticate(jump_host_auth_params, &mut session).await?;
 
         if !session.authenticated() {
             return Err(session
@@ -120,6 +110,43 @@ impl SshJumper {
         }
 
         Ok(SshSession(session))
+    }
+
+    async fn ssh_session_authenticate(
+        jump_host_auth_params: &JumpHostAuthParams<'_>,
+        session: &mut AsyncSession<TcpStream>,
+    ) -> Result<(), Error> {
+        let jump_host_user_name = &jump_host_auth_params.user_name;
+
+        match &jump_host_auth_params.auth_method {
+            AuthMethod::KeyPair {
+                private_key,
+                passphrase,
+            } => {
+                let jump_host_public_key = None;
+                let jump_host_private_key =
+                    private_key.plain().map_err(Error::PrivateKeyPlainPath)?;
+                let jump_host_private_key_passphrase = passphrase.as_deref();
+
+                session
+                    .userauth_pubkey_file(
+                        jump_host_user_name,
+                        jump_host_public_key,
+                        &jump_host_private_key,
+                        jump_host_private_key_passphrase,
+                    )
+                    .await
+                    .map_err(Error::SshUserAuthFail)?;
+            }
+            AuthMethod::Password { password } => {
+                session
+                    .userauth_password(jump_host_user_name, password)
+                    .await
+                    .map_err(Error::SshUserAuthFail)?;
+            }
+        }
+
+        Ok(())
     }
 
     /// Returns the local address to a new tunnel to the given target host.
@@ -137,7 +164,7 @@ impl SshJumper {
         ssh_session: &SshSession,
         local_socket: SocketAddr,
         target_socket: &HostSocketParams<'_>,
-    ) -> Result<SocketAddr, Error> {
+    ) -> Result<(SocketAddr, Receiver<io::Error>), Error> {
         let target_host_address = target_socket.address.to_string();
         let target_host_address = target_host_address.as_str();
         let target_port = target_socket.port;
@@ -155,7 +182,7 @@ impl SshJumper {
     async fn spawn_channel_streamers<'tunnel>(
         local_socket: SocketAddr,
         mut jump_host_channel: AsyncChannel<TcpStream>,
-    ) -> Result<SocketAddr, Error> {
+    ) -> Result<(SocketAddr, Receiver<io::Error>), Error> {
         let local_socket_addr = TcpListener::bind(local_socket)
             .map_err(|io_error| Error::LocalSocketBind {
                 local_socket,
@@ -168,48 +195,58 @@ impl SshJumper {
             })?;
         let local_socket_listener = Async::<TcpListener>::bind(local_socket_addr)
             .map_err(Error::SshTunnelListenerCreate)?;
+        let (ssh_error_tx, ssh_error_rx) = oneshot::channel::<io::Error>();
 
         let spawn_join_handle = tokio::task::spawn(async move {
             let _detached_task = tokio::task::spawn(async move {
                 let mut buf_jump_host_channel = vec![0; 2048];
                 let mut buf_forward_stream_r = vec![0; 2048];
 
-                let (mut forward_stream_r, _) = local_socket_listener.accept().await?;
-
-                loop {
-                    futures::select! {
-                        ret_forward_stream_r = forward_stream_r.read(&mut buf_forward_stream_r).fuse() => match ret_forward_stream_r {
-                            Ok(n) if n == 0 => {
-                                break
+                match local_socket_listener.accept().await {
+                    Ok((mut forward_stream_r, _)) => loop {
+                        futures::select! {
+                            ret_forward_stream_r = forward_stream_r.read(&mut buf_forward_stream_r).fuse() => match ret_forward_stream_r {
+                                Ok(n) if n == 0 => {
+                                    drop(ssh_error_tx);
+                                    break;
+                                },
+                                Ok(n) => {
+                                    if let Err(e) = jump_host_channel.write(&buf_forward_stream_r[..n]).await.map(|_| ()).map_err(|err| {
+                                        err
+                                    }) {
+                                        let _send_result = ssh_error_tx.send(e);
+                                        break;
+                                    }
+                                },
+                                Err(e) => {
+                                    let _send_result = ssh_error_tx.send(e);
+                                    break;
+                                }
                             },
-                            Ok(n) => {
-                                jump_host_channel.write(&buf_forward_stream_r[..n]).await.map(|_| ()).map_err(|err| {
-                                    err
-                                })?
+                            ret_jump_host_channel = jump_host_channel.read(&mut buf_jump_host_channel).fuse() => match ret_jump_host_channel {
+                                Ok(n) if n == 0 => {
+                                    drop(ssh_error_tx);
+                                    break
+                                },
+                                Ok(n) => {
+                                    if let Err(e) = forward_stream_r.write(&buf_jump_host_channel[..n]).await.map(|_| ()).map_err(|err| {
+                                        err
+                                    }) {
+                                        let _send_result = ssh_error_tx.send(e);
+                                        break;
+                                    }
+                                },
+                                Err(e) => {
+                                    let _send_result = ssh_error_tx.send(e);
+                                    break;
+                                }
                             },
-                            Err(err) => {
-                                return Err(err);
-                            }
-                        },
-                        ret_jump_host_channel = jump_host_channel.read(&mut buf_jump_host_channel).fuse() => match ret_jump_host_channel {
-                            Ok(n) if n == 0 => {
-                                break
-                            },
-                            Ok(n) => {
-                                forward_stream_r.write(&buf_jump_host_channel[..n]).await.map(|_| ()).map_err(|err| {
-                                    err
-                                })?
-                            },
-                            Err(err) => {
-                                return Err(err);
-                            }
-                        },
+                        }
+                    },
+                    Err(e) => {
+                        let _send_result = ssh_error_tx.send(e);
                     }
                 }
-
-                // sender_with_forward.send("done_with_forward").await.unwrap();
-
-                Ok(())
             });
         });
 
@@ -217,7 +254,7 @@ impl SshJumper {
             .await
             .map_err(Error::SshStreamerSpawnFail)?;
 
-        Ok(local_socket_addr)
+        Ok((local_socket_addr, ssh_error_rx))
     }
 
     async fn resolve_ip<'tunnel>(jump_host_addr: &str) -> Result<IpAddr, Error> {

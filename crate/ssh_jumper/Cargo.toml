@@ -17,4 +17,7 @@ async-std-resolver = "0.20.3"
 futures = "0.3.15"
 plain_path = "0.1.0"
 ssh_jumper_model = { version = "0.3.0", path = "../ssh_jumper_model" }
-tokio = { version = "1.6.1", features = ["rt"] }
+tokio = { version = "1.6.1", features = ["rt", "sync"] }
+
+[dev-dependencies]
+libssh-sys-dylib = "0.1.0"

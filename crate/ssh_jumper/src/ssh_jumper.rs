@@ -35,7 +35,8 @@ impl SshJumper {
             local_socket,
             target_socket,
         } = ssh_tunnel_params;
-        let ssh_session = Self::open_ssh_session_at_port(jump_host, jump_host_auth_params).await?;
+        let ssh_session =
+            Self::open_ssh_session_with_port(jump_host, jump_host_auth_params).await?;
         let local_socket_addr =
             Self::open_direct_channel(&ssh_session, *local_socket, target_socket).await?;
 
@@ -52,7 +53,7 @@ impl SshJumper {
         jump_host_addr: &HostAddress<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
     ) -> Result<SshSession, Error> {
-        SshJumper::open_ssh_session_at_port(
+        SshJumper::open_ssh_session_with_port(
             &HostSocketParams {
                 address: jump_host_addr.clone(),
                 port: 22,
@@ -66,9 +67,9 @@ impl SshJumper {
     ///
     /// # Parameters
     ///
-    /// * `jump_host_addr`: Address of the jump host.
+    /// * `jump_host_addr`: Address and port of the jump host.
     /// * `jump_host_auth_params`: SSH authentication parameters.
-    pub async fn open_ssh_session_at_port(
+    pub async fn open_ssh_session_with_port(
         jump_host_addr: &HostSocketParams<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
     ) -> Result<SshSession, Error> {

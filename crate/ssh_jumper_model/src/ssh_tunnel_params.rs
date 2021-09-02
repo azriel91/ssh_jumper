@@ -39,7 +39,7 @@ impl<'tunnel> SshTunnelParams<'tunnel> {
             IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1)),
             LOCAL_OS_CHOSEN_PORT,
         );
-        let jump_host_params: HostSocketParams = HostSocketParams{
+        let jump_host_params: HostSocketParams = HostSocketParams {
             address: jump_host,
             port: 22,
         };
@@ -73,7 +73,7 @@ impl<'tunnel> SshTunnelParams<'tunnel> {
     ///
     /// Useful if you do not want to use the default port for ssh.
     pub fn with_jump_port(mut self, port: u16) -> Self {
-        self.jump_host.port=port;
+        self.jump_host.port = port;
         self
     }
 }

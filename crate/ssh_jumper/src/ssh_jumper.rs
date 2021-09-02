@@ -52,7 +52,14 @@ impl SshJumper {
         jump_host_addr: &HostAddress<'_>,
         jump_host_auth_params: &JumpHostAuthParams<'_>,
     ) -> Result<SshSession, Error> {
-        SshJumper::open_ssh_session_at_port(&HostSocketParams{ address: jump_host_addr.clone(), port: 22 }, jump_host_auth_params).await
+        SshJumper::open_ssh_session_at_port(
+            &HostSocketParams {
+                address: jump_host_addr.clone(),
+                port: 22,
+            },
+            jump_host_auth_params,
+        )
+        .await
     }
 
     /// Opens an SSH session to a host with given port.
@@ -80,12 +87,13 @@ impl SshJumper {
             HostAddress::IpAddr(ip_addr) => ip_addr,
             HostAddress::HostName(jump_host_addr) => Self::resolve_ip(&jump_host_addr).await?,
         };
-        let stream = Async::<TcpStream>::connect(SocketAddr::from((jump_host_ip, jump_host_addr.port)))
-            .await
-            .map_err(|io_error| Error::JumpHostConnectFail {
-                jump_host_addr: jump_host_addr.address.into_static(),
-                io_error,
-            })?;
+        let stream =
+            Async::<TcpStream>::connect(SocketAddr::from((jump_host_ip, jump_host_addr.port)))
+                .await
+                .map_err(|io_error| Error::JumpHostConnectFail {
+                    jump_host_addr: jump_host_addr.address.into_static(),
+                    io_error,
+                })?;
 
         let mut session_configuration = SessionConfiguration::new();
         session_configuration.set_compress(true);
@@ -112,7 +120,6 @@ impl SshJumper {
 
         Ok(SshSession(session))
     }
-
 
     /// Returns the local address to a new tunnel to the given target host.
     ///

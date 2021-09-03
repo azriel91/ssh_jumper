@@ -170,6 +170,10 @@ impl SshJumper {
         let target_port = target_socket.port;
         let source = None;
 
+        eprintln!(
+            "** ssh jumper: target channel is at: {}:{}",
+            target_host_address, target_port
+        );
         let async_channel = ssh_session
             .channel_direct_tcpip(target_host_address, target_port, source)
             .await
@@ -207,36 +211,47 @@ impl SshJumper {
                         futures::select! {
                             ret_forward_stream_r = forward_stream_r.read(&mut buf_forward_stream_r).fuse() => match ret_forward_stream_r {
                                 Ok(n) if n == 0 => {
+                                    eprintln!("** ssh_jumper: read 0 bytes from local");
                                     drop(ssh_error_tx);
                                     break;
                                 },
                                 Ok(n) => {
+                                    eprintln!("** ssh_jumper: read {} bytes from local", n);
                                     if let Err(e) = jump_host_channel.write(&buf_forward_stream_r[..n]).await.map(|_| ()).map_err(|err| {
                                         err
                                     }) {
                                         let _send_result = ssh_error_tx.send(e);
                                         break;
+                                    } else {
+                                        eprintln!("** ssh_jumper: wrote {} bytes to channel: {}", n, String::from_utf8((&buf_forward_stream_r[..n]).to_vec()).unwrap());
                                     }
                                 },
                                 Err(e) => {
+                                    eprintln!("** ssh_jumper: error reading from local: {}", e);
                                     let _send_result = ssh_error_tx.send(e);
                                     break;
                                 }
                             },
                             ret_jump_host_channel = jump_host_channel.read(&mut buf_jump_host_channel).fuse() => match ret_jump_host_channel {
                                 Ok(n) if n == 0 => {
+                                    eprintln!("** ssh_jumper: read 0 bytes from channel");
                                     drop(ssh_error_tx);
-                                    break
+                                    break;
                                 },
                                 Ok(n) => {
+                                    eprintln!("** ssh_jumper: read {} bytes from channel", n);
                                     if let Err(e) = forward_stream_r.write(&buf_jump_host_channel[..n]).await.map(|_| ()).map_err(|err| {
                                         err
                                     }) {
+                                        eprintln!("** ssh_jumper: error writing to local: {}", e);
                                         let _send_result = ssh_error_tx.send(e);
                                         break;
+                                    } else {
+                                        eprintln!("** ssh_jumper: wrote {} bytes to local", n);
                                     }
                                 },
                                 Err(e) => {
+                                    eprintln!("** ssh_jumper: error reading from channel: {}", e);
                                     let _send_result = ssh_error_tx.send(e);
                                     break;
                                 }

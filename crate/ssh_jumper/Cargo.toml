@@ -20,4 +20,6 @@ ssh_jumper_model = { version = "0.3.0", path = "../ssh_jumper_model" }
 tokio = { version = "1.6.1", features = ["rt", "sync"] }
 
 [dev-dependencies]
+libc = "0.2.101"
 libssh-sys-dylib = "0.1.0"
+tokio = { version = "1.6.1", features = ["rt", "rt-multi-thread", "sync", "net"] }

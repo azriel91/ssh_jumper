@@ -100,6 +100,11 @@ async fn target_host_listen(target_port: u16) -> Result<[u8; 32], Box<dyn Error>
     }
 
     // Read data sent from local through tunnel.
+    //
+    // We're supposed to read what `SshJumper` wrote to the channel here.
+    // However, our test SSH server's `my_channel_data_fn` callback doesn't get
+    // invoked, so we never get the data.
+    let mut attempts = 3;
     loop {
         println!("target waiting for stream to be readable.");
         // Wait for the socket to be readable
@@ -115,7 +120,10 @@ async fn target_host_listen(target_port: u16) -> Result<[u8; 32], Box<dyn Error>
         match stream.try_read(&mut buf) {
             Ok(0) => {
                 println!("target read 0 bytes.");
-                return Ok(buf);
+                attempts -= 1;
+                if attempts == 0 {
+                    return Ok(buf);
+                }
             }
             Ok(n) => {
                 println!("target read {} bytes", n);
@@ -340,16 +348,16 @@ mod ssh_server {
     // https://git.libssh.org/projects/libssh.git/tree/examples/sshd_direct-tcpip.c
     fn forward_direct_tcp_ip_data(
         ssh_channel: *mut ssh_channel_struct,
-        target_tcp_steam: &TcpStream,
+        target_tcp_stream: &TcpStream,
         mainloop_event: ssh_event,
     ) {
-        let target_tcp_stream_fd = target_tcp_steam.as_raw_fd();
+        let target_tcp_stream_fd = target_tcp_stream.as_raw_fd();
         let event_fd_data = Box::new(EventFdDataStruct {
             ssh_channel,
             target_tcp_stream_fd,
         });
         let event_fd_data_ptr = Box::<_>::into_raw(event_fd_data) as *mut c_void;
-        let mut ssh_channel_callbacks = ssh_channel_callbacks_struct {
+        let mut ssh_channel_callbacks = Box::new(ssh_channel_callbacks_struct {
             size: 0,                                         // usize,
             userdata: event_fd_data_ptr,                     // *mut c_void,
             channel_data_function: Some(my_channel_data_fn), // ssh_channel_data_callback,
@@ -367,7 +375,7 @@ mod ssh_server {
             channel_env_request_function: None,       // ssh_channel_env_request_callback,
             channel_subsystem_request_function: None, // ssh_channel_subsystem_request_callback,
             channel_write_wontblock_function: None,   // ssh_channel_write_wontblock_callback,
-        };
+        });
 
         // Hopefully does the same function as `ssh_callbacks_init`
         // See <https://github.com/substack/libssh/blob/c073979/include/libssh/callbacks.h#L189-L191>
@@ -376,7 +384,10 @@ mod ssh_server {
             "SSH Server: ssh_channel_callbacks.size: {}",
             ssh_channel_callbacks.size
         );
-        unsafe { ssh_set_channel_callbacks(ssh_channel, ptr::addr_of_mut!(ssh_channel_callbacks)) };
+
+        // For some reason the `my_channel_data_fn` function is never called.
+        // Not sure if it's because we haven't registered the callback correctly.
+        unsafe { ssh_set_channel_callbacks(ssh_channel, Box::into_raw(ssh_channel_callbacks)) };
         unsafe {
             ssh_event_add_fd(
                 mainloop_event,
@@ -405,6 +416,7 @@ mod ssh_server {
             unsafe { TcpStream::from_raw_fd(event_fd_data.target_tcp_stream_fd) };
 
         let mut bytes = Vec::<u8>::with_capacity(len);
+        (0..len).for_each(|_| bytes.push(0));
         unsafe { ptr::copy_nonoverlapping(data as *mut u8, bytes.as_mut_ptr(), len) };
 
         let n_bytes_written;
@@ -446,7 +458,7 @@ mod ssh_server {
         let mut n_bytes_read = 0;
         let event_fd_data = Box::<EventFdDataStruct>::from_raw(userdata as *mut EventFdDataStruct);
         println!(
-            "my_fd_data_function called: tcp_stream_fd: {}",
+            "SSH Server: my_fd_data_function called: tcp_stream_fd: {}",
             event_fd_data.target_tcp_stream_fd
         );
         let channel = event_fd_data.ssh_channel;

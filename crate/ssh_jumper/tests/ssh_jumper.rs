@@ -6,7 +6,6 @@ use std::{
     thread::JoinHandle,
 };
 
-use futures::FutureExt;
 use ssh_jumper::{
     model::{HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams},
     SshJumper,
@@ -38,25 +37,25 @@ fn ssh_jumper_connect() -> Result<(), Box<dyn Error>> {
         let (client_done_tx, server_thread_handler) = ssh_server_spawn(jump_host_ssh_port).await?;
 
         match ssh_connection_open(local_port, jump_host_ssh_port, target_port).await {
-            Ok((local_socket_addr, ssh_error_rx)) => {
+            Ok((local_socket_addr, _ssh_error_rx)) => {
                 println!("SSH Jumper connected: {}", local_socket_addr);
 
                 local_bytes_send(local_socket_addr, b"test: ssh_jumper_connect").await?;
 
-                futures::select! {
-                    ssh_error = ssh_error_rx.fuse() => {
-                        if let Err(e) = ssh_error {
-                            println!("Received SSH error: {}", e);
-                        }
-                    }
-                    target_bytes_received = target_bytes_received.fuse() => {
-                        let target_bytes_received = target_bytes_received?;
-                        assert_eq!(b"test: ssh_jumper_connect", &target_bytes_received[0..24]);
-                    }
-                }
+                // futures::select! {
+                //     ssh_error = ssh_error_rx.fuse() => {
+                //         if let Err(e) = ssh_error {
+                //             println!("Received SSH error: {}", e);
+                //         }
+                //     }
+                //     target_bytes_received = target_bytes_received.fuse() => {
+                //         let target_bytes_received = target_bytes_received?;
+                //         assert_eq!(b"test: ssh_jumper_connect",
+                // &target_bytes_received[0..24]);     }
+                // }
 
-                // let target_bytes_received = target_bytes_received.await?;
-                // assert_eq!(b"test: ssh_jumper_connect", &target_bytes_received[0..24]);
+                let target_bytes_received = target_bytes_received.await?;
+                assert_eq!(b"test: ssh_jumper_connect", &target_bytes_received[0..24]);
 
                 client_done_notify(client_done_tx).await;
                 server_done_join(server_thread_handler);
@@ -102,8 +101,6 @@ async fn target_host_listen(target_port: u16) -> Result<[u8; 32], Box<dyn Error>
     // Read data sent from local through tunnel.
     //
     // We're supposed to read what `SshJumper` wrote to the channel here.
-    // However, our test SSH server's `my_channel_data_fn` callback doesn't get
-    // invoked, so we never get the data.
     let mut attempts = 3;
     loop {
         println!("target waiting for stream to be readable.");
@@ -127,6 +124,7 @@ async fn target_host_listen(target_port: u16) -> Result<[u8; 32], Box<dyn Error>
             }
             Ok(n) => {
                 println!("target read {} bytes", n);
+                return Ok(buf);
             }
             Err(e) if e.kind() == io::ErrorKind::WouldBlock => {
                 println!("target read would block.");
@@ -294,6 +292,9 @@ mod ssh_server {
                 "Error while ssh_handle_key_exchange"
             );
 
+            let mainloop_event = unsafe { ssh_event_new() };
+            unsafe { ssh_event_add_session(mainloop_event, session) };
+
             // handle auth
             let auth = authenticate(session);
             assert!(auth, "Auth error");
@@ -305,11 +306,10 @@ mod ssh_server {
                     println!("SSH server: Channel established");
 
                     // Forward traffic.
-                    let mainloop_event = unsafe { ssh_event_new() };
                     forward_direct_tcp_ip_data(channel, &target_tcp_stream, mainloop_event);
                     println!("SSH server: Callbacks set.");
 
-                    let mut poll_count = 3;
+                    let mut poll_count = 10;
                     loop {
                         println!("SSH server: polling");
                         let poll_result = unsafe { ssh_event_dopoll(mainloop_event, 100) };
@@ -385,8 +385,20 @@ mod ssh_server {
             ssh_channel_callbacks.size
         );
 
-        // For some reason the `my_channel_data_fn` function is never called.
-        // Not sure if it's because we haven't registered the callback correctly.
+        // The `my_channel_data_fn` callback may need all of the following to be called:
+        //
+        // * `ssh_event` registered with session before the channel is created.
+        //
+        //     ```rust
+        //     let mainloop_event = unsafe { ssh_event_new() };
+        //     unsafe { ssh_event_add_session(mainloop_event, session) };
+        //     ```
+        //
+        // * The event to be polled.
+        // * The `ssh_channel_callbacks` size correctly set.
+        //
+        // We also need to remember that any memory passed through user data must not be
+        // freed by Rust in the callbacks, otherwise we get double free errors.
         unsafe { ssh_set_channel_callbacks(ssh_channel, Box::into_raw(ssh_channel_callbacks)) };
         unsafe {
             ssh_event_add_fd(
@@ -408,7 +420,7 @@ mod ssh_server {
         _is_stderr: c_int,
         userdata: *mut c_void,
     ) -> c_int {
-        println!("!!! my_channel_data_fn called !!!");
+        println!("!!!!!!!!!!!!!!!!!!!!! my_channel_data_fn called !!!");
         let len: usize = len.try_into().unwrap();
         let event_fd_data =
             unsafe { Box::<EventFdDataStruct>::from_raw(userdata as *mut EventFdDataStruct) };
@@ -480,6 +492,7 @@ mod ssh_server {
             match target_tcp_stream.read(&mut buf) {
                 Ok(0) => {
                     ssh_channel_send_eof(channel);
+                    break;
                 }
                 Ok(n) => {
                     if ssh_channel_is_open(channel) == 1 {

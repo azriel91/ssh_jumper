@@ -7,7 +7,7 @@ use std::{
 };
 
 use ssh_jumper::{
-    model::{HostAddress, HostSocketParams, JumpHostAuthParams, SshTunnelParams},
+    model::{HostAddress, HostSocketParams, JumpHostAuthParams, SshForwarderEnd, SshTunnelParams},
     SshJumper,
 };
 use tokio::{
@@ -37,22 +37,15 @@ fn ssh_jumper_connect() -> Result<(), Box<dyn Error>> {
         let (client_done_tx, server_thread_handler) = ssh_server_spawn(jump_host_ssh_port).await?;
 
         match ssh_connection_open(local_port, jump_host_ssh_port, target_port).await {
-            Ok((local_socket_addr, _ssh_error_rx)) => {
+            Ok((local_socket_addr, ssh_forwarder_end_rx)) => {
                 println!("SSH Jumper connected: {}", local_socket_addr);
 
                 local_bytes_send(local_socket_addr, b"test: ssh_jumper_connect").await?;
 
-                // futures::select! {
-                //     ssh_error = ssh_error_rx.fuse() => {
-                //         if let Err(e) = ssh_error {
-                //             println!("Received SSH error: {}", e);
-                //         }
-                //     }
-                //     target_bytes_received = target_bytes_received.fuse() => {
-                //         let target_bytes_received = target_bytes_received?;
-                //         assert_eq!(b"test: ssh_jumper_connect",
-                // &target_bytes_received[0..24]);     }
-                // }
+                match ssh_forwarder_end_rx.await {
+                    Ok(ssh_forwarder_end) => println!("Test: {:?}", ssh_forwarder_end),
+                    Err(e) => println!("Test: Failed to receive `SshForwarderEnd`: {}.", e),
+                }
 
                 let target_bytes_received = target_bytes_received.await?;
                 assert_eq!(b"test: ssh_jumper_connect", &target_bytes_received[0..24]);
@@ -199,7 +192,7 @@ async fn ssh_connection_open(
     local_port: u16,
     jump_host_ssh_port: u16,
     target_port: u16,
-) -> Result<(SocketAddr, oneshot::Receiver<io::Error>), ssh_jumper::model::Error> {
+) -> Result<(SocketAddr, oneshot::Receiver<SshForwarderEnd>), ssh_jumper::model::Error> {
     let localhost_addr = HostAddress::IpAddr(LOCALHOST_ADDR);
 
     let jump_host = localhost_addr.clone();
@@ -420,7 +413,7 @@ mod ssh_server {
         _is_stderr: c_int,
         userdata: *mut c_void,
     ) -> c_int {
-        println!("!!!!!!!!!!!!!!!!!!!!! my_channel_data_fn called !!!");
+        println!("SSH server: my_channel_data_fn called");
         let len: usize = len.try_into().unwrap();
         let event_fd_data =
             unsafe { Box::<EventFdDataStruct>::from_raw(userdata as *mut EventFdDataStruct) };

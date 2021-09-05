@@ -1,5 +1,10 @@
 # 🌐💨 SSH Jumper
 
+[![Crates.io](https://img.shields.io/crates/v/ssh_jumper.svg)](https://crates.io/crates/ssh_jumper)
+[![docs.rs](https://img.shields.io/docsrs/ssh_jumper)](https://docs.rs/ssh_jumper)
+[![CI](https://github.com/azriel91/credent/workflows/CI/badge.svg)](https://github.com/azriel91/ssh_jumper/actions/workflows/ci.yml)
+[![Coverage Status](https://codecov.io/gh/azriel91/ssh_jumper/branch/main/graph/badge.svg)](https://codecov.io/gh/azriel91/ssh_jumper)
+
 Async SSH tunnel through a jump host.
 
 ```rust
@@ -11,7 +16,7 @@ use ssh_jumper::{
 
 // Similar to running:
 // ssh -i ~/.ssh/id_rsa -L 1234:target_host:8080 my_user@bastion.com
-let local_socket_addr = {
+let (local_socket_addr, ssh_forwarder_end_rx) = {
     let jump_host = HostAddress::HostName(Cow::Borrowed("bastion.com"));
     let jump_host_auth_params = JumpHostAuthParams::new(
         Cow::Borrowed("my_user"),

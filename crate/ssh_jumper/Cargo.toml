@@ -1,6 +1,6 @@
 [package]
 name = "ssh_jumper"
-version = "0.4.0"
+version = "0.5.0"
 authors = ["Azriel Hoh <azriel91@gmail.com>"]
 edition = "2018"
 description = "Async SSH tunnel through a jump host."
@@ -16,7 +16,7 @@ async-ssh2-lite = { version = "0.3.0", features = ["async-io"] }
 async-std-resolver = "0.21.2"
 futures = "0.3.21"
 plain_path = "0.1.0"
-ssh_jumper_model = { version = "0.4.0", path = "../ssh_jumper_model" }
+ssh_jumper_model = { version = "0.5.0", path = "../ssh_jumper_model" }
 tokio = { version = "1.19.2", features = ["rt", "sync"] }
 
 [dev-dependencies]

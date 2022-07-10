@@ -84,18 +84,18 @@ impl SshJumper {
             HostAddress::IpAddr(ip_addr) => ip_addr,
             HostAddress::HostName(jump_host_addr) => Self::resolve_ip(&jump_host_addr).await?,
         };
-        let stream =
-            Async::<TcpStream>::connect(SocketAddr::from((jump_host_ip, jump_host_addr.port)))
-                .await
-                .map_err(|io_error| Error::JumpHostConnectFail {
-                    jump_host_addr: jump_host_addr.into_static(),
-                    io_error,
-                })?;
 
         let mut session_configuration = SessionConfiguration::new();
         session_configuration.set_compress(true);
-        let mut session = AsyncSession::new(stream, Some(session_configuration))
-            .map_err(Error::AsyncSessionInitialize)?;
+        let mut session = AsyncSession::<Async<TcpStream>>::connect(
+            SocketAddr::from((jump_host_ip, jump_host_addr.port)),
+            Some(session_configuration),
+        )
+        .await
+        .map_err(|error| Error::AsyncSessionInitialize {
+            jump_host_addr: jump_host_addr.into_static(),
+            error,
+        })?;
 
         session.handshake().await.map_err(Error::SshHandshakeFail)?;
         Self::ssh_session_authenticate(jump_host_auth_params, &mut session).await?;
@@ -112,7 +112,7 @@ impl SshJumper {
 
     async fn ssh_session_authenticate(
         jump_host_auth_params: &JumpHostAuthParams<'_>,
-        session: &mut AsyncSession<TcpStream>,
+        session: &mut AsyncSession<Async<TcpStream>>,
     ) -> Result<(), Error> {
         let jump_host_user_name = &jump_host_auth_params.user_name;
 
@@ -179,7 +179,7 @@ impl SshJumper {
     // https://github.com/bk-rs/async-ssh2-lite/blob/master/demos/smol/src/proxy_jump.rs
     async fn spawn_channel_streamers<'tunnel>(
         local_socket: SocketAddr,
-        mut jump_host_channel: AsyncChannel<TcpStream>,
+        mut jump_host_channel: AsyncChannel<Async<TcpStream>>,
     ) -> Result<(SocketAddr, Receiver<SshForwarderEnd>), Error> {
         let local_socket_addr = TcpListener::bind(local_socket)
             .map_err(|io_error| Error::LocalSocketBind {

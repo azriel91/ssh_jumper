@@ -11,15 +11,15 @@ keywords = ["ssh", "tunnel", "async"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-async-io = "1.4.1"
-async-ssh2-lite = "0.2.1"
-async-std-resolver = "0.20.3"
-futures = "0.3.15"
+async-io = "1.7.0"
+async-ssh2-lite = { version = "0.3.0", features = ["async-io"] }
+async-std-resolver = "0.21.2"
+futures = "0.3.21"
 plain_path = "0.1.0"
 ssh_jumper_model = { version = "0.4.0", path = "../ssh_jumper_model" }
-tokio = { version = "1.6.1", features = ["rt", "sync"] }
+tokio = { version = "1.19.2", features = ["rt", "sync"] }
 
 [dev-dependencies]
-libc = "0.2.101"
+libc = "0.2.126"
 libssh-sys-dylib = "0.1.0"
-tokio = { version = "1.6.1", features = ["rt", "rt-multi-thread", "sync", "net"] }
+tokio = { version = "1.19.2", features = ["rt", "rt-multi-thread", "sync", "net"] }

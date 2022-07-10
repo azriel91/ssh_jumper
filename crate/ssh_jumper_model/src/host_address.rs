@@ -1,7 +1,7 @@
 use std::{borrow::Cow, fmt, net::IpAddr};
 
 /// Parameters to identify a host and port.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum HostAddress<'host> {
     /// IP Address such as `IpAddr::V4(Ipv4Addr::new(127, 0, 0, 1))`.
     IpAddr(IpAddr),

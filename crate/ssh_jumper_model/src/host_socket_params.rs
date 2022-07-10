@@ -3,7 +3,7 @@ use std::fmt;
 use crate::HostAddress;
 
 /// Parameters to identify a host and port.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct HostSocketParams<'host> {
     /// Name or IP address of the host.
     pub address: HostAddress<'host>,

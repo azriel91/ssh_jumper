@@ -209,9 +209,7 @@ impl SshJumper {
                                     break;
                                 },
                                 Ok(n) => {
-                                    if let Err(e) = jump_host_channel.write(&buf_forward_stream_r[..n]).await.map(|_| ()).map_err(|err| {
-                                        err
-                                    }) {
+                                    if let Err(e) = jump_host_channel.write(&buf_forward_stream_r[..n]).await.map(|_| ()) {
                                         let _send_result = ssh_forwarder_tx.send(ssh_jumper_model::SshForwarderEnd::LocalToChannelWriteErr(e));
                                         break;
                                     }
@@ -227,9 +225,7 @@ impl SshJumper {
                                     break;
                                 },
                                 Ok(n) => {
-                                    if let Err(e) = forward_stream_r.write(&buf_jump_host_channel[..n]).await.map(|_| ()).map_err(|err| {
-                                        err
-                                    }) {
+                                    if let Err(e) = forward_stream_r.write(&buf_jump_host_channel[..n]).await.map(|_| ()) {
                                         let _send_result = ssh_forwarder_tx.send(ssh_jumper_model::SshForwarderEnd::ChannelToLocalWriteErr(e));
                                         break;
                                     }

@@ -3,7 +3,7 @@ use std::{borrow::Cow, path::Path};
 use crate::AuthMethod;
 
 /// Parameters to authenticate with the jump host.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub struct JumpHostAuthParams<'auth> {
     /// User to log in to the jump host as.
     pub user_name: Cow<'auth, str>,

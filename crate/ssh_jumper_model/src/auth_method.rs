@@ -1,7 +1,7 @@
 use std::{borrow::Cow, path::Path};
 
 /// Authentication method and details.
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq)]
 pub enum AuthMethod<'auth> {
     /// Use a private/public key pair for authentication.
     KeyPair {

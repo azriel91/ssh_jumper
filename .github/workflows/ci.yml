@@ -14,8 +14,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v1
-      - uses: actions-rs/audit-check@v1
+      - uses: actions/checkout@v3
+      - uses: bp3d-actions/audit-check@9c23bd47e5e7b15b824739e0862cb878a52cc211
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
 
@@ -24,15 +24,17 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - # FIXME: Switch back when actions-rs/toolchain#{209,220,222} is merged
+        uses: r3-os/actions-rust-toolchain@a862b6623c178b43a3135516442a5f72fb5c1877
         with:
           profile: minimal
           toolchain: nightly
           override: true
           components: rustfmt
 
-      - uses: actions-rs/cargo@v1
+      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         with:
           command: fmt
           args: --all -- --check
@@ -42,8 +44,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - # FIXME: Switch back when actions-rs/toolchain#{209,220,222} is merged
+        uses: r3-os/actions-rust-toolchain@a862b6623c178b43a3135516442a5f72fb5c1877
         with:
           profile: minimal
           toolchain: nightly
@@ -56,7 +59,8 @@ jobs:
       - name: Install Clippy
         run: rustup component add clippy
 
-      - uses: actions-rs/cargo@v1
+      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         with:
           command: clippy
           args: -- -D warnings
@@ -66,8 +70,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - # FIXME: Switch back when actions-rs/toolchain#{209,220,222} is merged
+        uses: r3-os/actions-rust-toolchain@a862b6623c178b43a3135516442a5f72fb5c1877
         with:
           profile: minimal
           toolchain: stable
@@ -78,19 +83,21 @@ jobs:
 
       - name: tarpaulin Cache
         id: tarpaulin_cache
-        uses: actions/cache@v2
+        uses: actions/cache@v3
         with:
           path: ~/.cargo/bin/cargo-tarpaulin
           key: ${{ runner.os }}-cargo-tarpaulin
 
-      - uses: actions-rs/cargo@v1
+      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         if: steps.tarpaulin_cache.outputs.cache-hit != 'true'
         with:
           command: install
           args: cargo-tarpaulin
 
       - name: 'Run `cargo-tarpaulin`'
-        uses: actions-rs/cargo@v1
+        # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         with:
           command: tarpaulin
 
@@ -104,8 +111,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     steps:
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - # FIXME: Switch back when actions-rs/toolchain#{209,220,222} is merged
+        uses: r3-os/actions-rust-toolchain@a862b6623c178b43a3135516442a5f72fb5c1877
         with:
           profile: minimal
           toolchain: stable
@@ -114,7 +122,8 @@ jobs:
       - name: Install libssh-dev
         run: sudo apt install libssh-dev
 
-      - uses: actions-rs/cargo@v1
+      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         with:
           command: test
           args: --release
@@ -127,14 +136,16 @@ jobs:
       - name: Prepare symlink configuration
         run: git config --global core.symlinks true
 
-      - uses: actions/checkout@v2
-      - uses: actions-rs/toolchain@v1
+      - uses: actions/checkout@v3
+      - # FIXME: Switch back when actions-rs/toolchain#{209,220,222} is merged
+        uses: r3-os/actions-rust-toolchain@a862b6623c178b43a3135516442a5f72fb5c1877
         with:
           profile: minimal
           toolchain: stable
           override: true
 
-      - uses: actions-rs/cargo@v1
+      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
+        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
         with:
           command: build
           args: --release

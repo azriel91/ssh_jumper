@@ -11,7 +11,7 @@ keywords = ["ssh", "tunnel", "async"]
 license = "MIT OR Apache-2.0"
 
 [dependencies]
-async-ssh2-lite = { version = "0.3.0", features = ["async-io"] }
-async-std-resolver = "0.21.2"
+async-ssh2-lite = { version = "0.4.1", features = ["async-io"] }
+async-std-resolver = "0.22.0"
 plain_path = "0.1.0"
-tokio = { version = "1.19.2", features = ["rt"] }
+tokio = { version = "1.23.0", features = ["rt"] }

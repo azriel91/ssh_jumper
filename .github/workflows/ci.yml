@@ -49,11 +49,7 @@ jobs:
       - name: Install Clippy
         run: rustup component add clippy
 
-      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
-        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
-        with:
-          command: clippy
-          args: -- -D warnings
+      - run: cargo clippy -- -D warnings
 
   coverage:
     name: Coverage
@@ -73,18 +69,11 @@ jobs:
           path: ~/.cargo/bin/cargo-tarpaulin
           key: ${{ runner.os }}-cargo-tarpaulin
 
-      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
-        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
+      - run: cargo install cargo-tarpaulin
         if: steps.tarpaulin_cache.outputs.cache-hit != 'true'
-        with:
-          command: install
-          args: cargo-tarpaulin
 
       - name: 'Run `cargo-tarpaulin`'
-        # FIXME: Switch back when actions-rs/cargo#217 gets merged
-        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
-        with:
-          command: tarpaulin
+        run: cargo tarpaulin
 
       - name: Upload to codecov.io
         uses: codecov/codecov-action@v1
@@ -102,11 +91,7 @@ jobs:
       - name: Install libssh-dev
         run: sudo apt install libssh-dev
 
-      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
-        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
-        with:
-          command: test
-          args: --release
+      - run: cargo test --release
 
   build_windows:
     name: Build (Windows)
@@ -119,8 +104,4 @@ jobs:
       - uses: actions/checkout@v3
       - uses: dtolnay/rust-toolchain@stable
 
-      - # FIXME: Switch back when actions-rs/cargo#217 gets merged
-        uses: r3-os/actions-rust-cargo@fb222fe18dc90e381546d012f9e3d6f353f0f627
-        with:
-          command: build
-          args: --release
+      - run: cargo build --release
